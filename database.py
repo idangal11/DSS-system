@@ -3,6 +3,22 @@ import random
 import datetime
 import mysql.connector
 
+def abstract_data(measurements):
+    # Define a function to categorize the WBC count
+    def categorize_wbc(value):
+        value = int(value)
+        if value < 4000:
+            return 'wbc_low'
+        elif 4000 <= value <= 10000:
+            return 'wbc_medium'
+        else:
+            return 'wbc_high'
+
+    # Apply the function to the 'value' column and create a new 'state' column
+    measurements['state'] = measurements['value'].apply(categorize_wbc)
+    return measurements
+
+
 class PatientData:
     def __init__(self, host, user, password, database):
         self.db_connection = mysql.connector.connect(
@@ -15,16 +31,81 @@ class PatientData:
 
     # Get patient by first name and last name
     def get_patient_data(self, first_name, last_name):
+        print('@@@@@@@')
         self.cursor.execute(
-            "SELECT loinc_num, value, unit, valid_start_time, transaction_time\
-            FROM patients p\
-            JOIN test_results t ON p.id = t.patient_id\
+            "SELECT first_name, last_na, loinc_num, value, unit, valid_start_time, transaction_time\
+            FROM test_results p\
             WHERE first_name = %s AND last_name = %s",
             (first_name, last_name,)
         )
-        return self.cursor.fetchall()
+        result = self.cursor.fetchall()
+        print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
         
+        if result == []:
+            print("No data found for the given first name and last name.")
+            return None  # You can return None or any other indicator for no data found
+        
+        return result
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    def time_interval_table(self, first_name, last_name):
+        patient_data = self.get_patient_data(first_name, last_name)
+        patient_data_columns = ['first_name', 'last_name','loinc_num', 'value','unit','valid_start_time','transaction_time']
+        df = pd.DataFrame(patient_data, columns=patient_data_columns)
 
+        # Filter the DataFrame to include only WBC measurements
+        wbc = df[df['unit'] == 'cells/ml']
+        hemoglobin = df[df['unit'] == 'gr/dl']
+
+        # Sort the DataFrame by valid_start_time
+        wbc = wbc.sort_values(by=['valid_start_time'])
+        hemoglobin = hemoglobin.sort_values(by=['valid_start_time'])
+        abstracts_1 = abstract_data(wbc)
+        abstracts_2 = abstract_data(hemoglobin)
+
+        return abstracts_1, abstracts_2
+
+
+    def dictinary_of_time_interval(self, measurements):
+        # Initialize variables
+        intervals = {}
+        interval_start = measurements.iloc[0]['valid_start_time']
+        interval_name = 'interval_1'
+        intervals[interval_name] = [interval_start]
+        interval_index = 1
+
+        # Iterate through the DataFrame to find intervals
+        for i in range(1, len(measurements)):
+            current_time = measurements.iloc[i]['valid_start_time']
+            previous_time = measurements.iloc[i - 1]['valid_start_time']
+
+            current_state = measurements.iloc[i]['state']
+            previous_state = measurements.iloc[i - 1]['state']
+
+            # Check if the time difference is more than 2 days
+            if current_time - previous_time < datetime.timedelta(days=2) and current_state == previous_state:
+                intervals[interval_name].append(current_time)
+            else:
+                intervals[interval_name].append(previous_time)
+                interval_index += 1
+                interval_name = f'interval_{interval_index}'
+                intervals[interval_name] = [current_time]
+
+        # Remove duplicates in intervals
+        for key in intervals:
+            intervals[key] = [intervals[key][0] - datetime.timedelta(days=2), intervals[key][-1] + datetime.timedelta(days=2)]
+
+        print(intervals)
+        return intervals
+        
 
     # Add a patient to the database
     def add_patient(self, id, first_name, last_name):
@@ -55,11 +136,20 @@ class PatientData:
         self.cursor.close()
         self.db_connection.close()
 
-if __name__ == "__main__":
-    pd = PatientData(host="localhost", user="root", password="q6rh3b", database="patient_data")
+# if __name__ == "__main__":
+#     patient_data = PatientData(host="localhost", user="root", password="q6rh3b", database="patient_data")
 
-    data = pd.get_patient_data('Eyal', 'Rothman')
-    print(type(data))
+    # data = patient_data.get_patient_data('Eyal', 'Rothman')
+    # for d in data:
+    #     print(d)
+    
+    # abstracts_1, abstracts_2 = patient_data.time_interval_table('Eyal', 'Rothman')
+    # print(abstracts_1)
+    # print(abstracts_2)
+    # dict_ = patient_data.dictinary_of_time_interval(abstracts_1)
+    
+    # data = pd.get_patient_data('Eyal', 'Rothman')
+    # print(type(data))
     # for d in data:
     #     print(d)
 

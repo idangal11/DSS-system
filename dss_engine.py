@@ -18,7 +18,10 @@ class DSSEngine:
     def __init__(self, patient_data):
         self.db = patient_data
 
+    # This function recieve query (patient details)/
+    # from user and get required record from DB
     def retrieval_question(self, query):
+        print('hey')
         DB = self.db
         (patient_first_name, patient_last_name, loinc_num,
          valid_date, valid_time, physician_date, physician_time) = query
@@ -32,23 +35,27 @@ class DSSEngine:
         if physician_date is None or physician_time is None:
             return "No record found, insert valid physician view time."
 
-        # Determine time by date or both, datw and time. Depend on user choice.
+        # Determine time by date or both, date and time. Depend on user choice.
         if valid_time is None:
             without_valid_time = True
             valid_date_record_time = pd.Timestamp(f'{valid_date}').date()
         else:
             valid_record_time = pd.Timestamp(f'{valid_date} {valid_time}')
 
-        # Determine date and time according to physician view.
+        # Determine date and time according to physician view
         physician_record_time = pd.Timestamp(f'{physician_date} {physician_time}')
 
-        # filter data to retrieve relevant records
+        # filter relevant record- name, physician view point and loinc
+        print('@!@')
         patient_data = DB.get_patient_data(patient_first_name, patient_last_name)
-        patient_data_columns = ['loinc_num', 'value','unit','valid_start_time','transaction_time']
+        if patient_data is None:
+            print('yes')
+        patient_data_columns = ['first_name','last_name','loinc_num', 'value','unit','valid_start_time','transaction_time']
         patient_data_df = pd.DataFrame(patient_data, columns=patient_data_columns)
         patient_data_df_loinc = patient_data_df[(patient_data_df['loinc_num'] == loinc_num)]
         patient_data_df_loinc_phys = patient_data_df_loinc[(patient_data_df_loinc['transaction_time'] <= physician_record_time)]
-        
+        print(patient_data_df_loinc_phys)
+
         # retrieve records where match the user inserted date and time
         if without_valid_time:
             data_patient = patient_data_df_loinc_phys.copy()
@@ -119,7 +126,7 @@ class DSSEngine:
         else:
             print("No matching record found.")
         
-        return required_record
+        return ("The update was successful.", required_record)
 
     def delete_record(self, query):
         DB = self.db
@@ -135,8 +142,10 @@ class DSSEngine:
 
         # filter data to retrieve relevant records
         patient_data = DB.get_patient_data(patient_first_name, patient_last_name)
-        patient_data_columns = ['loinc_num', 'value','unit','valid_start_time','transaction_time']
+        patient_data_columns = ['first_name', 'last_name', 'loinc_num', 'value', 'unit', 'valid_start_time', 'transaction_time']
+        # patient_data_columns = ['loinc_num', 'value','unit','valid_start_time','transaction_time']
         patient_data_df = pd.DataFrame(patient_data, columns=patient_data_columns)
+        print("patient: ", patient_data_df)
         patient_data_to_save = patient_data_df.copy()
         # Check which record to drop, required record
         patient_data_df_loinc = patient_data_df[(patient_data_df['loinc_num'] == loinc_num)]
@@ -153,16 +162,18 @@ class DSSEngine:
             print('There is no records in inserted time')
 
         return ("The update was successful.", required_record.iloc[0])
-
+    
+    # def state_time_interval(self, query):
 
 if __name__ == "__main__":
+    
 
     patient_data = PatientData(host="localhost", user="root", password="q6rh3b", database="patient_data")
     engine = DSSEngine(patient_data)
 
-    # query = ['Eyal', 'Rothman', '11218-5', '17/05/2018', '17:00:00', '25/05/2018',  '10:00:00']
-    # result = engine.retrieval_question(query)
-    # print(result)
+    query = ['Eyal', 'Rothman', '11218-5', '17/05/2018', '17:00:00', '25/05/2018',  '10:00:00']
+    result = engine.retrieval_question(query)
+    print('result', result)
     
     # query = ['Eyal', 'Rothman', '11218-5', '17/05/2018', '6:00:00', '21/05/2018', '15:00:00']
     # result = engine.retrieval_history_question(query)
@@ -171,9 +182,9 @@ if __name__ == "__main__":
     # query = ['Eyal', 'Rothman', '11218-5', '17/05/2018', '13:11:00', '27/05/2018', '10:00:00']
     # engine.update_record('4444', query)
 
-    query = ['Eyal', 'Rothman', '11218-5', '17/05/2018', '13:11:00', '27/05/2018', '10:00:00']
-    result = engine.delete_record(query)
-    print(result[0])
-    print(result[1])
+    # query = ['Eyal', 'Rothman', '11218-5', '17/05/2018', '13:11:00', '27/05/2018', '10:00:00']
+    # result = engine.delete_record(query)
+    # print(result[0])
+    # print(result[1])
 
 

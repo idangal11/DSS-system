@@ -1,4 +1,6 @@
 import mysql.connector
+import pandas as pd
+import numpy as np
 
 class KnowledgeBase:
     def __init__(self, host, user, password, database):
@@ -10,6 +12,13 @@ class KnowledgeBase:
         )
         self.cursor = self.db_connection.cursor()
 
+    def get_goodbefore_goodafter(self, param):
+        #ההמוגלובין  תקף חודש לפני ושבוע אחרי 
+        #התאי דם הלבנים עם תוקף של יום יומיים גג לפני ואחרי 
+        gbga = {'hemoglobin_level': [(1,0,0),(0,1,0)], 'wbc_level': [(0,0,2),(0,0,2)],
+                'systemic_toxicity': [(1,0,0), (1,0,0)]}
+        return gbga[param]
+    
     def get_concepts(self, sex):
         query = """
             SELECT sex, category, range_value 
